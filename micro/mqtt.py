@@ -14,7 +14,7 @@ import os
 
 class MqttClient:
 
-    def __init__(self, host="mqtt.eclipse.org", port=1883, username=None, password=None, base=""):
+    def __init__(self, host="mqtt.eclipse.org", port=1883, username=None, password=None):
 
         self.client = mqtt.Client()
 
@@ -26,7 +26,6 @@ class MqttClient:
         self.client.on_publish = self.on_publish
         self.client.on_connect = self.on_connect
 
-        self.base = base
         self.hadlers = {}
 
         self.loop = False
@@ -50,7 +49,7 @@ class MqttClient:
         logging.debug("on_publish: ok")
 
     def publish(self, topic, data):
-        res = self.client.publish(f"{self.base}/{topic}", json.dumps(data))
+        res = self.client.publish(topic, json.dumps(data))
         logging.debug("publish response: %s", res)
 
     def unsubscribe(self, topic):
@@ -59,8 +58,6 @@ class MqttClient:
     def subscribe(self, topic, handle):
         
         try:
-            topic = f"{self.base}/{topic}"
-
             def on_message(client, userdata, message):
 
                 if message.topic in self.hadlers:
@@ -68,7 +65,7 @@ class MqttClient:
                     logging.debug("received: [%s] %s", message.topic, payload)
                     self.hadlers[message.topic](
                         json.loads(payload), 
-                        message.topic.replace(f"{self.base}/", "")
+                        message.topic
                     )
 
             self.hadlers[topic] = handle
@@ -85,9 +82,9 @@ class MqttClient:
 
 class SubscriberServer:
 
-    def __init__(self, host="mqtt.eclipse.org", port=1883, username=None, password=None, base=""):
+    def __init__(self, host="mqtt.eclipse.org", port=1883, username=None, password=None):
 
-        self.client = MqttClient(host, port, username, password, base)
+        self.client = MqttClient(host, port, username, password)
 
         self.process = None
         self.config = []
@@ -143,11 +140,10 @@ MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASS = os.getenv("MQTT_PASS")
 MQTT_HOST = os.getenv("MQTT_HOST")
 MQTT_PORT = int(os.getenv("MQTT_PORT") or "1883")
-MQTT_BASE = os.getenv("MQTT_BASE")
 
-__singleton__ = MqttClient(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
-__subscriber__ = SubscriberServer(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
-__rpc__ = RpcServer(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
+__singleton__ = MqttClient(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
+__subscriber__ = SubscriberServer(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
+__rpc__ = RpcServer(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
 
 def subscribe(topic):
     def decorator(handle):

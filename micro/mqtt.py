@@ -42,6 +42,11 @@ class MqttClient:
     def on_connect(self, client, userdata, level, buf):
         logging.debug("on_connect: %s", buf)
 
+    def on_disconnect(self, client, userdata, rc):
+        logging.debug("on_disconnect: %d", rc)
+        if rc != 0:
+            self.client.reconnect()         
+
     def on_log(self, client, userdata, level, buf):
         logging.debug("on_log: %s", buf)
 

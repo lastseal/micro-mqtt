@@ -14,7 +14,7 @@ import os
 
 class MqttClient:
 
-    def __init__(self, host="mqtt.eclipse.org", port=1883, username=None, password=None):
+    def __init__(self, host="test.mosquitto.org", port=1883, username=None, password=None):
 
         self.client = mqtt.Client()
 
@@ -143,7 +143,7 @@ class RpcServer(SubscriberServer):
 
 MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASS = os.getenv("MQTT_PASS")
-MQTT_HOST = os.getenv("MQTT_HOST") or "mqtt.eclipse.org"
+MQTT_HOST = os.getenv("MQTT_HOST") or "test.mosquitto.org"
 MQTT_PORT = int(os.getenv("MQTT_PORT") or "1883")
 
 __singleton__ = MqttClient(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)

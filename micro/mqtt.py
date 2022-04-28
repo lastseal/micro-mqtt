@@ -143,7 +143,7 @@ class RpcServer(SubscriberServer):
 
 MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASS = os.getenv("MQTT_PASS")
-MQTT_HOST = os.getenv("MQTT_HOST")
+MQTT_HOST = os.getenv("MQTT_HOST") or "127.0.0.1"
 MQTT_PORT = int(os.getenv("MQTT_PORT") or "1883")
 
 __singleton__ = MqttClient(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)

@@ -170,7 +170,7 @@ def call(command, data=None):
     __result__ = {}
 
     def handle(data, topic):
-        __result__['result'] = data
+        __result__['result'] = data['result']
         __singleton__.stop()
 
     __singleton__.subscribe(f"{command}/res", handle)

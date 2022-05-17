@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*
 
 from multiprocessing import Process
-from . import config
+from micro import config
 
 import paho.mqtt.client as mqtt
+import threading
 import logging
 import json
 import time
@@ -68,10 +69,13 @@ class MqttClient:
                 if message.topic in self.hadlers:
                     payload = str(message.payload, 'utf-8')
                     logging.debug("received: [%s] %s", message.topic, payload)
-                    self.hadlers[message.topic](
-                        json.loads(payload), 
-                        message.topic
-                    )
+
+                    try:
+                        payload = json.loads(payload)
+                    except:
+                        pass
+
+                    self.hadlers[message.topic](payload)
 
             self.hadlers[topic] = handle
 
@@ -81,6 +85,44 @@ class MqttClient:
         except Exception as ex:
             logging.error(ex)
             raise ex
+
+##
+# SubscriberThread
+
+class SubscriberThread(threading.Thread):
+
+    def __init__(self, host="mqtt.eclipse.org", port=1883, username=None, password=None):
+        super().__init__(target=self.__target__, daemon=True)
+        self.client = MqttClient(host, port, username, password)
+        self.topic = None
+        self.handle = None
+
+    def __del__(self):
+        super().join()
+
+    def __target__(self):
+        self.client.subscribe(self.topic, self.handle)
+        self.client.start()
+
+    def start(self, topic, handle):
+        self.topic = topic
+        self.handle = handle
+        super().start()
+
+##
+# RpcThread
+
+class RpcThread(SubscriberThread):
+
+    def __target__(self):
+           
+        def response(data):
+            self.client.publish(f"{self.topic}/res", {
+                "result": self.handle(data)
+            })
+
+        self.client.subscribe(self.topic, response)
+        self.client.start()
 
 ##
 # SubscriberServer
@@ -147,34 +189,48 @@ MQTT_HOST = os.getenv("MQTT_HOST") or "test.mosquitto.org"
 MQTT_PORT = int(os.getenv("MQTT_PORT") or "1883")
 
 __singleton__ = MqttClient(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
-__subscriber__ = SubscriberServer(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
 __rpc__ = RpcServer(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
+
+__subscribers__ = []
+__rpcs__ = []
+
+
+##
+# Subscripciones
 
 def subscribe(topic):
     def decorator(handle):
-        __subscriber__.start(topic, handle)
+        subscriber = SubscriberThread(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
+        subscriber.start(topic, handle)
+        __subscribers__.append(subscriber)
         
     return decorator
 
 def publish(topic, data):
     __singleton__.publish(topic, data)
 
+
+##
+# RPC
+
 def rpc(command):
     def decorator(handle):
-        __rpc__.start(command, handle)
+        rpc = RpcThread(MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS)
+        rpc.start(command, handle)
+        __rpcs__.append(rpc)
         
     return decorator
 
-def call(command, data=None):
+def call(command, data={}):
 
     __result__ = {}
 
-    def handle(data, topic):
+    def handle(data):
         __result__['result'] = data['result']
         __singleton__.stop()
 
     __singleton__.subscribe(f"{command}/res", handle)
-    __singleton__.publish(command, {} if data is None else data)
+    __singleton__.publish(command, data)
     __singleton__.start()
     __singleton__.unsubscribe(f"{command}/res")
         

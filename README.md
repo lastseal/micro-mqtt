@@ -9,6 +9,22 @@ pip install git+https://github.com/lastseal/micro-mqtt
 
 ## Uso Básico
 
+Microservicio MQTT PubSub
+
+```python
+from micro import mqtt
+
+@mqtt.subscribe("topic")
+def topic1(data, topic):
+    print(data)
+```
+
+```python
+from micro import mqtt
+
+mqtt.publish("topic", {"data": "topic 1"})
+```
+
 Microservicio MQTT RPC
 
 ```python
